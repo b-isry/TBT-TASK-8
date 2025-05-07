@@ -4,8 +4,8 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.error import RetryAfter
 import asyncio
-import nest_asyncio
 import logging
+from aiohttp import web
 
 # Set up logging
 logging.basicConfig(
@@ -51,30 +51,38 @@ async def main():
             logger.warning(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
             await asyncio.sleep(e.retry_after)
 
-    # Start the webhook
-    logger.info(f"Starting webhook server on port {PORT}")
-    await application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=webhook_url,
-        secret_token=os.getenv('SECRET_TOKEN')
-    )
+    # Create web application
+    app = web.Application()
+    
+    # Add webhook handler
+    async def webhook_handler(request):
+        if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != os.getenv('SECRET_TOKEN'):
+            return web.Response(status=403)
+        
+        update = await request.json()
+        await application.process_update(Update.de_json(update, application.bot))
+        return web.Response(status=200)
+
+    # Add route for webhook
+    app.router.add_post('/webhook', webhook_handler)
+    
+    # Start web server
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
+    await site.start()
+    
+    logger.info(f"Webhook server started on port {PORT}")
+    
+    # Keep the server running
+    while True:
+        await asyncio.sleep(3600)  # Sleep for an hour
 
 if __name__ == '__main__':
-    # Apply nest_asyncio to allow nested event loops
-    nest_asyncio.apply()
-    
-    # Get the event loop
-    loop = asyncio.get_event_loop()
-    
     try:
-        logger.info(f"Starting bot on port {PORT}")
-        # Run the main function
-        loop.run_until_complete(main())
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user")
     except Exception as e:
         logger.error(f"Error occurred: {e}")
         raise
-    finally:
-        logger.info(f"Application is running on port {PORT}")
-        # Keep the event loop running
-        loop.run_forever()

@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import asyncio
 
 load_dotenv()
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -39,5 +40,13 @@ async def main():
     )
 
 if __name__ == '__main__':
-    import asyncio
-    asyncio.run(main())
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If the loop is already running, use `create_task` to run the main coroutine
+            asyncio.create_task(main())
+        else:
+            asyncio.run(main())
+    except RuntimeError:
+        # For environments where `get_event_loop` is not set, create a new loop
+        asyncio.run(main())

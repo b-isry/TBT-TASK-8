@@ -5,6 +5,14 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from telegram.error import RetryAfter
 import asyncio
 import nest_asyncio
+import logging
+
+# Set up logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -18,7 +26,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(update.message.text)
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f'Error occurred: {context.error}')
+    logger.error(f'Error occurred: {context.error}')
 
 async def main():
     # Initialize bot application
@@ -31,15 +39,20 @@ async def main():
 
     # Start webhook with retry logic
     webhook_url = os.getenv('WEBHOOK_URL')
+    if not webhook_url:
+        raise ValueError("WEBHOOK_URL environment variable is not set!")
+
+    logger.info(f"Setting webhook to {webhook_url}")
     while True:
         try:
             await application.bot.set_webhook(webhook_url)
             break
         except RetryAfter as e:
-            print(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
+            logger.warning(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
             await asyncio.sleep(e.retry_after)
 
     # Start the webhook
+    logger.info(f"Starting webhook server on port {PORT}")
     await application.run_webhook(
         listen="0.0.0.0",
         port=PORT,
@@ -55,11 +68,13 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     
     try:
+        logger.info(f"Starting bot on port {PORT}")
         # Run the main function
         loop.run_until_complete(main())
     except Exception as e:
-        print(f"Error occurred: {e}")
+        logger.error(f"Error occurred: {e}")
+        raise
     finally:
-        print(f"Application is running on port {PORT}")
+        logger.info(f"Application is running on port {PORT}")
         # Keep the event loop running
         loop.run_forever()

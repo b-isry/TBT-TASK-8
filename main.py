@@ -4,6 +4,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.error import RetryAfter
 import asyncio
+import nest_asyncio
 
 load_dotenv()
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -43,28 +44,22 @@ async def main():
         listen="0.0.0.0",
         port=PORT,
         webhook_url=webhook_url,
-        secret_token=os.getenv('SECRET_TOKEN')  
+        secret_token=os.getenv('SECRET_TOKEN')
     )
 
 if __name__ == '__main__':
-    import sys
-
+    # Apply nest_asyncio to allow nested event loops
+    nest_asyncio.apply()
+    
+    # Get the event loop
+    loop = asyncio.get_event_loop()
+    
     try:
-        # Try the standard way first
-        asyncio.run(main())
-    except RuntimeError as e:
-        print(f"RuntimeError: {e}")
-        # If the event loop is already running (common in some platforms)
-        if "already running" in str(e):
-            import nest_asyncio
-            nest_asyncio.apply()
-            loop = asyncio.get_event_loop()
-            # Properly schedule and run the coroutine
-            task = loop.create_task(main())
-            # Await the task if possible
-            try:
-                loop.run_until_complete(task)
-            except RuntimeError as e2:
-                print(f"RuntimeError during run_until_complete: {e2}")
+        # Run the main function
+        loop.run_until_complete(main())
+    except Exception as e:
+        print(f"Error occurred: {e}")
     finally:
         print(f"Application is running on port {PORT}")
+        # Keep the event loop running
+        loop.run_forever()

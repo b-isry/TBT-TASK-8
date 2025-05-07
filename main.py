@@ -2,7 +2,9 @@ import os
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.error import RetryAfter
 import asyncio
+import time
 
 load_dotenv()
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -27,10 +29,16 @@ async def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     application.add_error_handler(error_handler)
 
-    # Start webhook
+    # Start webhook with retry logic
     webhook_url = os.getenv('WEBHOOK_URL')
-    await application.bot.set_webhook(webhook_url)
-    
+    while True:
+        try:
+            await application.bot.set_webhook(webhook_url)
+            break
+        except RetryAfter as e:
+            print(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
+            time.sleep(e.retry_after)
+
     # Start the webhook
     await application.run_webhook(
         listen="0.0.0.0",

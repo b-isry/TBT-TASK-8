@@ -36,7 +36,7 @@ async def main():
             break
         except RetryAfter as e:
             print(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
-            await asyncio.sleep(e.retry_after)  # Use asyncio.sleep instead of time.sleep
+            await asyncio.sleep(e.retry_after)
 
     # Start the webhook
     await application.run_webhook(
@@ -47,17 +47,15 @@ async def main():
     )
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
     try:
+        loop = asyncio.get_event_loop()
         if loop.is_running():
-            # If the loop is already running, schedule the main coroutine
-            loop.create_task(main())
+            print("Event loop is already running. Scheduling the main coroutine.")
+            asyncio.ensure_future(main())
         else:
-            # Run the main coroutine in a new event loop
             loop.run_until_complete(main())
     except RuntimeError as e:
         print(f"RuntimeError: {e}")
     finally:
-        # Ensure the loop is not closed if it's already running
         if not loop.is_running():
             loop.close()

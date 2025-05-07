@@ -30,16 +30,16 @@ def setup_logging():
         backupCount=5
     )
     file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logs
+    file_handler.setLevel(logging.DEBUG)
 
     # Set up console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logs
+    console_handler.setLevel(logging.DEBUG)
 
     # Set up root logger
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logs
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
@@ -106,6 +106,9 @@ async def main():
     
     # Initialize bot application
     application = Application.builder().token(TOKEN).build()
+    
+    # Initialize the application
+    await application.initialize()
     logger.info("Bot application initialized")
 
     # Register handlers
@@ -132,6 +135,8 @@ async def main():
             
             update = await request.json()
             logger.debug(f"Received webhook update: {json.dumps(update, indent=2)}")
+            
+            # Process the update
             await application.process_update(Update.de_json(update, application.bot))
             logger.debug("Update processed successfully")
             return web.Response(status=200)

@@ -30,16 +30,16 @@ def setup_logging():
         backupCount=5
     )
     file_handler.setFormatter(file_formatter)
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logs
 
     # Set up console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logs
 
     # Set up root logger
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)  # Set to DEBUG for more detailed logs
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
@@ -56,13 +56,21 @@ PORT = int(os.environ.get('PORT', '8443'))
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     logger.info(f"User {user.id} ({user.username}) started the bot")
-    await update.message.reply_text('Hello! Bot is running with webhooks!')
+    try:
+        await update.message.reply_text('Hello! Bot is running with webhooks!')
+        logger.info(f"Start message sent to user {user.id}")
+    except Exception as e:
+        logger.error(f"Error sending start message: {e}")
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     message_text = update.message.text
     logger.info(f"User {user.id} ({user.username}) sent message: {message_text}")
-    await update.message.reply_text(update.message.text)
+    try:
+        await update.message.reply_text(update.message.text)
+        logger.info(f"Echo message sent to user {user.id}")
+    except Exception as e:
+        logger.error(f"Error sending echo message: {e}")
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Log the error and send a message to the user."""
@@ -117,6 +125,7 @@ async def main():
     # Add webhook handler
     async def webhook_handler(request):
         try:
+            logger.debug("Received webhook request")
             if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != os.getenv('SECRET_TOKEN'):
                 logger.warning("Invalid secret token in webhook request")
                 return web.Response(status=403)
@@ -124,6 +133,7 @@ async def main():
             update = await request.json()
             logger.debug(f"Received webhook update: {json.dumps(update, indent=2)}")
             await application.process_update(Update.de_json(update, application.bot))
+            logger.debug("Update processed successfully")
             return web.Response(status=200)
         except Exception as e:
             logger.error(f"Error processing webhook: {e}")

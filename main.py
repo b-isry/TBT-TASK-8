@@ -4,7 +4,6 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.error import RetryAfter
 import asyncio
-import time
 
 load_dotenv()
 TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -37,7 +36,7 @@ async def main():
             break
         except RetryAfter as e:
             print(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
-            time.sleep(e.retry_after)
+            await asyncio.sleep(e.retry_after)  # Use asyncio.sleep instead of time.sleep
 
     # Start the webhook
     await application.run_webhook(
@@ -48,13 +47,17 @@ async def main():
     )
 
 if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
     try:
-        loop = asyncio.get_event_loop()
         if loop.is_running():
-            # If the loop is already running, use `create_task` to run the main coroutine
-            asyncio.create_task(main())
+            # If the loop is already running, schedule the main coroutine
+            loop.create_task(main())
         else:
-            asyncio.run(main())
-    except RuntimeError:
-        # For environments where `get_event_loop` is not set, create a new loop
-        asyncio.run(main())
+            # Run the main coroutine in a new event loop
+            loop.run_until_complete(main())
+    except RuntimeError as e:
+        print(f"RuntimeError: {e}")
+    finally:
+        # Ensure the loop is not closed if it's already running
+        if not loop.is_running():
+            loop.close()

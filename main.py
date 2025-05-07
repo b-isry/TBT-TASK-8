@@ -37,22 +37,12 @@ async def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
     application.add_error_handler(error_handler)
 
-    # Start webhook with retry logic
-    webhook_url = os.getenv('WEBHOOK_URL')
-    if not webhook_url:
-        raise ValueError("WEBHOOK_URL environment variable is not set!")
-
-    logger.info(f"Setting webhook to {webhook_url}")
-    while True:
-        try:
-            await application.bot.set_webhook(webhook_url)
-            break
-        except RetryAfter as e:
-            logger.warning(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
-            await asyncio.sleep(e.retry_after)
-
     # Create web application
     app = web.Application()
+    
+    # Add root route handler
+    async def root_handler(request):
+        return web.Response(text="Bot is running!", status=200)
     
     # Add webhook handler
     async def webhook_handler(request):
@@ -63,7 +53,8 @@ async def main():
         await application.process_update(Update.de_json(update, application.bot))
         return web.Response(status=200)
 
-    # Add route for webhook
+    # Add routes
+    app.router.add_get('/', root_handler)
     app.router.add_post('/webhook', webhook_handler)
     
     # Start web server
@@ -73,6 +64,27 @@ async def main():
     await site.start()
     
     logger.info(f"Webhook server started on port {PORT}")
+    
+    # Set webhook after server is running
+    webhook_url = os.getenv('WEBHOOK_URL')
+    if not webhook_url:
+        raise ValueError("WEBHOOK_URL environment variable is not set!")
+
+    # Make sure webhook URL ends with /webhook
+    if not webhook_url.endswith('/webhook'):
+        webhook_url = f"{webhook_url.rstrip('/')}/webhook"
+
+    logger.info(f"Setting webhook to {webhook_url}")
+    while True:
+        try:
+            await application.bot.set_webhook(
+                webhook_url,
+                secret_token=os.getenv('SECRET_TOKEN')
+            )
+            break
+        except RetryAfter as e:
+            logger.warning(f"Flood control exceeded. Retrying in {e.retry_after} seconds...")
+            await asyncio.sleep(e.retry_after)
     
     # Keep the server running
     while True:

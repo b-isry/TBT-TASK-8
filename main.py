@@ -57,5 +57,9 @@ if __name__ == '__main__':
     except RuntimeError as e:
         print(f"RuntimeError: {e}")
     finally:
+        # Do not close the loop if it is already running
         if not loop.is_running():
             loop.close()
+
+    # Explicitly bind the port to ensure the platform detects it
+    print(f"Application is running on port {PORT}")

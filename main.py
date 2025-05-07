@@ -47,19 +47,18 @@ async def main():
     )
 
 if __name__ == '__main__':
+    import sys
+
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            print("Event loop is already running. Scheduling the main coroutine.")
-            asyncio.ensure_future(main())
-        else:
-            loop.run_until_complete(main())
+        asyncio.run(main())
     except RuntimeError as e:
         print(f"RuntimeError: {e}")
+        # If the event loop is already running (e.g., in Jupyter), fallback:
+        if "already running" in str(e):
+            import nest_asyncio
+            nest_asyncio.apply()
+            loop = asyncio.get_event_loop()
+            loop.create_task(main())
+            loop.run_forever()
     finally:
-        # Do not close the loop if it is already running
-        if not loop.is_running():
-            loop.close()
-
-    # Explicitly bind the port to ensure the platform detects it
-    print(f"Application is running on port {PORT}")
+        print(f"Application is running on port {PORT}")
